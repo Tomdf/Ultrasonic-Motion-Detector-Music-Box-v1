@@ -10,7 +10,7 @@ written for Arduino IDE 2.3.2 with ATTiny84 IC
 
 #define TRIGGER_PIN  10  // Attiny84 Arduino pin tied to trigger pin on the ultrasonic sensor.
 #define ECHO_PIN     9  // Attiny84 Arduino pin tied to echo pin on the ultrasonic sensor.
-#define MAX_DISTANCE 500 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
+#define MAX_DISTANCE 450 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
 
@@ -57,10 +57,11 @@ void setup() {
     digitalWrite(led, LOW);
 
     // Find the average of all samples.
-    // 10 is subtracted to give a buffer to compensate for minor reading variations
-    sensorSamples = (sensorSamples / 10) - 10; 
+    // 5 is subtracted to give a buffer to compensate for minor reading variations
+    sensorSamples = (sensorSamples / 10) - 5; 
     
     if(sensorSamples <= 0){   // the sensor will read 0 if it does not detect a surface
+      sensorSamples = 0;
       max_range = true;
     }
   }
@@ -76,7 +77,7 @@ void loop() {
    
   //if the Music Box is facing an open area and returned a range of zero then trigger if anything is sensed. 
   if(max_range){
-    if(sonar.ping_cm() > 10){
+    if(sonar.ping_cm() > 5){
       playMusic(2);
     }
   }
@@ -107,12 +108,20 @@ void playMusic(int x){  //Turns on the music box motor for x seconds
 
   //save sensor reading to a variable for later if not in max range mode
   sensorReading = sonar.ping_cm();
- 
-  //Check if the sensor is still blocked and if so keep playing
-  while(sensorReading < sensorSamples && sensorReading > 0){
-    digitalWrite(led, !digitalRead(led));
-    delay(1000);
-	  sensorReading = sonar.ping_cm();
+  
+  if(max_range){
+    while(sonar.ping_cm() > 5){
+      digitalWrite(led, !digitalRead(led));
+      delay(1000);
+    }
+  }
+  else {
+    //Check if the sensor is still blocked and if so keep playing
+    while(sensorReading < sensorSamples && sensorReading > 0){
+      digitalWrite(led, !digitalRead(led));
+      delay(1000);
+      sensorReading = sonar.ping_cm();
+    }
   }
   
   digitalWrite(motor, LOW);
