@@ -1,8 +1,8 @@
 /*
 ---------------------------------------------------------------------------
 Ultrasonic Motion Detector Music Box
-written for Arduino IDE 2.3.2
-7-5-24
+written for Arduino IDE 2.3.2 with ATTiny84 IC
+7-30-24
 ---------------------------------------------------------------------------
 */
 
@@ -27,6 +27,7 @@ const int shortRangeDistance = 150; //Detection range of short range mode in cen
 bool object_detected = false;
 bool max_range = false; 
 int sensorSamples = 0;
+int sensorReading = 0;
 unsigned long previousMillis = 0;
 int randNumber;
 
@@ -39,12 +40,14 @@ void setup() {
   pinMode(hauntedSelect, INPUT);
   pinMode(shortRangeMode, INPUT);
 
-  if(digitalRead(shortRangeMode)){	// if Short Range Switch is on then set the short detection range
+  // if Short Range Switch is on then set the short detection range
+  if(digitalRead(shortRangeMode)){	
     sensorSamples = shortRangeDistance;
   }
+
+  // If Short Range Switch is off then sample and calibrate the range
   else{
-	// If Short Range Switch is off then sample and calibrate the range
-    // Take range samples to determine range to nearest object in front of sensor
+	    // Take range samples to determine range to nearest object in front of sensor
     int i;
     for (i = 0; i < 10; i++) {
       digitalWrite(led, !digitalRead(led));   // toggles LED on and off while calibrating range
@@ -65,13 +68,21 @@ void setup() {
 
 void loop() {
   delay(50); //Wait 50ms between pings (about 20 pings/sec). 29ms should be the shortest delay between pings.
-
+  
+  //save sensor reading to a variable for later if not in max range mode
+	if(!max_range){
+    sensorReading = sonar.ping_cm();
+  }
+   
+  //if the Music Box is facing an open area and returned a range of zero then trigger if anything is sensed. 
   if(max_range){
     if(sonar.ping_cm() > 10){
       playMusic(2);
     }
   }
-  else if(sonar.ping_cm() < sensorSamples){
+
+  //if not at max range then compare new readings to the calibration value
+  else if(sensorReading < sensorSamples && sensorReading > 0){
     playMusic(2);
   }
 
@@ -94,10 +105,14 @@ void playMusic(int x){  //Turns on the music box motor for x seconds
     delay(1000);
   }
 
+  //save sensor reading to a variable for later if not in max range mode
+  sensorReading = sonar.ping_cm();
+ 
   //Check if the sensor is still blocked and if so keep playing
-  while(sonar.ping_cm() < sensorSamples){
+  while(sensorReading < sensorSamples && sensorReading > 0){
     digitalWrite(led, !digitalRead(led));
     delay(1000);
+	  sensorReading = sonar.ping_cm();
   }
   
   digitalWrite(motor, LOW);
